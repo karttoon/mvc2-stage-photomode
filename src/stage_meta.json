@@ -1,0 +1,24 @@
+{
+  "_comment": "Source of truth for the stage showcase. Edit freely. 'order' is the display order (ModNao STGXX listing). Each stage: name (ModNao), status done|wip, texture_url + yt_url (leave blank for dead/placeholder links).",
+  "order": ["00", "0A", "0B", "0C", "0D", "0E", "0F", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "CV"],
+  "stages": {
+    "CV": {"name": "CvS2 — Concrete Rooftop", "status": "done", "texture_url": "", "yt_url": ""},
+    "00": {"name": "Airship Stage (Day, Flying)",   "status": "wip",  "texture_url": "", "yt_url": ""},
+    "01": {"name": "Desert Stage (Orange Sky)",     "status": "done", "texture_url": "", "yt_url": ""},
+    "02": {"name": "Factory Stage",                 "status": "done", "texture_url": "", "yt_url": ""},
+    "03": {"name": "Carnival Stage (Summer/Spring)","status": "wip",  "texture_url": "", "yt_url": ""},
+    "04": {"name": "Swamp Stage",                   "status": "wip",  "texture_url": "", "yt_url": ""},
+    "05": {"name": "Cave Stage (Water)",            "status": "wip",  "texture_url": "", "yt_url": ""},
+    "06": {"name": "Clocktower Stage (Clear Sky)",  "status": "wip",  "texture_url": "", "yt_url": ""},
+    "07": {"name": "River on Ice Stage",            "status": "wip",  "texture_url": "", "yt_url": ""},
+    "08": {"name": "Abyss Stage",                   "status": "done", "texture_url": "", "yt_url": ""},
+    "09": {"name": "Airship Stage (Night, Floating)","status": "wip", "texture_url": "", "yt_url": ""},
+    "0A": {"name": "Desert Stage (Blue Sky)",       "status": "wip",  "texture_url": "", "yt_url": ""},
+    "0B": {"name": "Training Stage",                "status": "wip",  "texture_url": "", "yt_url": ""},
+    "0C": {"name": "Carnival Stage (Winter/Fall)",  "status": "wip",  "texture_url": "", "yt_url": ""},
+    "0D": {"name": "Swamp (Asian)",                 "status": "done", "texture_url": "", "yt_url": ""},
+    "0E": {"name": "Cave Stage (Lava)",             "status": "wip",  "texture_url": "", "yt_url": ""},
+    "0F": {"name": "Clocktower Stage (Snowy)",      "status": "wip",  "texture_url": "", "yt_url": ""},
+    "10": {"name": "River on Raft Stage",           "status": "wip",  "texture_url": "", "yt_url": ""}
+  }
+}

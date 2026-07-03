@@ -1,0 +1,20 @@
+# Captures + built gallery (keep the folder, ignore contents)
+output/*
+!output/.gitkeep
+
+# Disc images (you supply your own; never commit game data)
+*.cdi
+*.gdi
+*.iso
+*.bin
+
+# Harness runtime scratch
+src/cmd.txt
+src/out.log
+src/panflag.txt
+src/_uploads/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
