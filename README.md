@@ -76,6 +76,12 @@ python regen_stage.py --all        # all 17
 PM_CDI=<Modified.cdi> PM_OUT=<...\output\modified>  python stage_batch.py
 PM_CDI=<Defaults.cdi> PM_OUT=<...\output\defaults>  python stage_batch.py
 
+# Someone ELSE'S stage -- guest mode. Never writes to your stage-source folder or
+# your own discs; output is labelled and kept separate from your captures.
+python build_guest_stage.py 05 <their_tex.bin> ..\MVC2_Guest.cdi
+PM_CDI=..\MVC2_Guest.cdi PM_OUT=..\output\guests PM_LABEL=authorname python stage_batch.py 05
+# (or just fill in the "Label" box in internal_tool.py and it does all of this)
+
 # A non-standard / foreign static stage (loads into the Training slot; oversized
 # textures are handled by a directory-record repoint — no ISO rebuild)
 python build_custom_stage.py "<folder with STG0BPOL/TEX>"  ..\MVC2_Custom.cdi
@@ -87,6 +93,7 @@ python build_mockups.py
 # Point-and-click front end (LOCAL ONLY): pick a stage, upload a texture, it does
 # the whole build -> capture -> media, and shows the result
 python internal_tool.py            # http://127.0.0.1:8765
+#   (optional "Label" field = guest mode: someone else's stage, kept separate)
 ```
 
 ## Repo layout

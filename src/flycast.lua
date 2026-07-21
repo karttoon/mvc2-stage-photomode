@@ -7,7 +7,7 @@
 
 -- EDIT THIS to the absolute path of this toolkit's src/ folder (double
 -- backslashes, trailing slash). MUST match config.py's PM_DIR (default: src/).
-local PM_DIR = "C:\\Repo\\mvc2-stage-photomode\\src\\"
+local PM_DIR = "C:\\path\\to\\mvc2-stage-photomode\\src\\"
 local CMD_FILE = PM_DIR .. "cmd.txt"
 local OUT_FILE = PM_DIR .. "out.log"
 

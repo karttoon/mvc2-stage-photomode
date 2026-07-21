@@ -29,6 +29,8 @@ OUT_DEFAULTS = os.path.join(OUTPUT, "defaults")
 SITE         = os.path.join(OUTPUT, "site_mockups")
 # Scratch disc rebuilt for each custom/foreign-stage capture.
 CUSTOM_CDI   = os.path.join(REPO, "MVC2_Custom_Scratch.cdi")
+# Scratch disc for OTHER PEOPLE's stages (guest mode) -- your own files stay untouched.
+GUEST_CDI    = os.path.join(REPO, "MVC2_Guest_Scratch.cdi")
 
 # The harness polls PM_DIR for cmd.txt and writes out.log / panflag.txt there.
 # IMPORTANT: this MUST match the PM_DIR set at the top of flycast.lua.

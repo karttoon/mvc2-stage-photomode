@@ -16,7 +16,8 @@ import os, sys, json, subprocess, urllib.parse, http.server, socketserver, webbr
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from config import MODDIR, OUTPUT as OUT, SITE, MODIFIED_CDI as MOD_CDI, CUSTOM_CDI
+from config import (MODDIR, OUTPUT as OUT, SITE, MODIFIED_CDI as MOD_CDI,
+                    CUSTOM_CDI, GUEST_CDI)
 UP = os.path.join(HERE, "_uploads")
 PORT = 8765
 
@@ -65,6 +66,8 @@ media. Standard stages also update the gallery.</p>
 <select id="stage" onchange="onStage()">{opts}</select>
 <label>Texture (STGxxTEX.BIN)</label><input type="file" id="tex" accept=".bin,.BIN">
 <div id="polrow"><label>POL (STGxxPOL.BIN) &mdash; required for custom</label><input type="file" id="pol" accept=".bin,.BIN"></div>
+<label>Label (optional) &mdash; for someone else's stage</label>
+<input type="text" id="label" placeholder="e.g. authorname  (keeps it out of your own files/gallery)">
 <button id="go" onclick="run()">Generate</button>
 <div class="spin" id="spin">&#9881; working&hellip; Flycast is capturing (~2 min)&hellip;</div>
 <div id="log"></div>
@@ -85,6 +88,7 @@ async function run(){{
  var slot=document.getElementById('stage').value;
  var tex=document.getElementById('tex').files[0];
  var pol=document.getElementById('pol').files[0];
+ var label=document.getElementById('label').value.trim();
  var log=document.getElementById('log'), spin=document.getElementById('spin'), go=document.getElementById('go');
  log.style.display='block'; log.textContent='';
  if(!tex){{ log.textContent='Pick a texture .BIN first.'; return; }}
@@ -93,7 +97,7 @@ async function run(){{
  try{{
    await up(slot,'tex',tex);
    if(pol) await up(slot,'pol',pol);
-   var r=await fetch('/generate?slot='+slot,{{method:'POST'}});
+   var r=await fetch('/generate?slot='+slot+'&label='+encodeURIComponent(label),{{method:'POST'}});
    var j=await r.json();
    log.textContent=j.log;
    if(j.ok){{
@@ -108,8 +112,8 @@ onStage();
 </script></body></html>"""
 
 
-def _capture(cdi, slot_hex, out_dir):
-    env = dict(os.environ, PM_CDI=cdi, PM_OUT=out_dir)
+def _capture(cdi, slot_hex, out_dir, label=""):
+    env = dict(os.environ, PM_CDI=cdi, PM_OUT=out_dir, PM_LABEL=label)
     return subprocess.run([sys.executable, os.path.join(HERE, "stage_batch.py"), f"{slot_hex:02X}"],
                           cwd=HERE, env=env, capture_output=True, text=True)
 
@@ -156,8 +160,9 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._send(200, "ok")
         if p.path == "/generate":
             slot = q.get("slot", [""])[0]
+            label = "".join(c for c in q.get("label", [""])[0] if c.isalnum() or c in "-_")[:32]
             try:
-                return self._generate(slot)
+                return self._generate(slot, label)
             except Exception as e:
                 return self._send(200, json.dumps({"ok": False, "log": f"ERROR: {e}"}), "application/json")
         return self._send(404, "not found")
@@ -170,7 +175,7 @@ class H(http.server.BaseHTTPRequestHandler):
             "left": base + "_left.png", "center": base + "_still.png", "right": base + "_right.png",
         }), "application/json")
 
-    def _generate(self, slot):
+    def _generate(self, slot, label=""):
         if slot == "custom":
             pol = os.path.join(UP, "CUSTOMPOL.BIN"); tex = os.path.join(UP, "CUSTOMTEX.BIN")
             log = ["building custom Training-slot disc ..."]
@@ -183,8 +188,32 @@ class H(http.server.BaseHTTPRequestHandler):
             log.append(c.stdout[-600:] + (("\n" + c.stderr[-400:]) if c.stderr else ""))
             ok = "DONE (" in c.stdout
             return self._result(out_dir, "stg0B_Training", "\n".join(log), ok)
-        # standard slot
         s = slot.upper()
+        if label:
+            # GUEST MODE -- someone else's stage. Never writes to your Modified\
+            # folder or your own discs; output is labelled and kept in output\guests.
+            tex = os.path.join(UP, f"STG{s}TEX.BIN")
+            pol = os.path.join(UP, f"STG{s}POL.BIN")
+            if not os.path.exists(tex):
+                return self._send(200, json.dumps({"ok": False, "log": "no texture uploaded"}),
+                                  "application/json")
+            args = [sys.executable, os.path.join(HERE, "build_guest_stage.py"), s, tex, GUEST_CDI]
+            if os.path.exists(pol):
+                args += ["--pol", pol]
+            log = [f"GUEST '{label}': building scratch disc (your own files untouched) ..."]
+            r = subprocess.run(args, cwd=HERE, capture_output=True, text=True)
+            log.append((r.stdout or "") + (("\n" + r.stderr) if r.stderr else ""))
+            if r.returncode != 0:
+                return self._send(200, json.dumps({"ok": False, "log": "\n".join(log)}),
+                                  "application/json")
+            out_dir = os.path.join(OUT, "guests")
+            log.append("capturing (Flycast, ~2 min) ...")
+            c = _capture(GUEST_CDI, int(s, 16), out_dir, label)
+            log.append(c.stdout[-600:] + (("\n" + c.stderr[-400:]) if c.stderr else ""))
+            ok = "DONE (" in c.stdout
+            tag = (TAG.get(s) or f"stg{s}_Stage") + f"__{label}"
+            return self._result(out_dir, tag, "\n".join(log), ok)
+        # standard slot (your own stage)
         for kind in ("TEX", "POL"):
             src = os.path.join(UP, f"STG{s}{kind}.BIN")
             if os.path.exists(src):

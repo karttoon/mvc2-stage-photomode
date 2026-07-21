@@ -28,6 +28,9 @@ from config import MODIFIED_CDI, OUT_MODIFIED
 
 CDI = os.environ.get("PM_CDI", MODIFIED_CDI)
 OUT_ROOT = os.environ.get("PM_OUT", OUT_MODIFIED)
+# Optional suffix appended to the stage tag/filenames -- used for OTHER PEOPLE's
+# stages so they never collide with your own captures.
+LABEL = os.environ.get("PM_LABEL", "").strip()
 
 CHAR_SWEEP = 1114     # char slide endpoints (+/-). Coupling: render magnitude =
                       # |char| - 154, so char +/-1114 -> cam +/-960 == the game's
@@ -211,7 +214,7 @@ def make_panel(out, left, center, right, gap=10, bg=(15, 15, 15)):
 
 def do_stage(sid):
     name = STAGES[sid]
-    tag = f"stg{sid:02X}_{name}"
+    tag = f"stg{sid:02X}_{name}" + (f"__{LABEL}" if LABEL else "")
     outdir = os.path.join(OUT_ROOT, tag)
     os.makedirs(outdir, exist_ok=True)
     log = lambda m: print(f"[{tag}] {m}", flush=True)
