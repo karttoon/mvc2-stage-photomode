@@ -106,6 +106,7 @@ src/
   stage_batch.py        # the capture pipeline
   regen_stage.py        # patch a standard slot + capture + rebuild gallery
   build_custom_stage.py # capture disc for a foreign / oversized stage
+  build_guest_stage.py  # capture disc for someone ELSE'S stage (your files untouched)
   patch_cdi.py          # in-place same-size stage patcher for a CDI
   build_mockups.py      # website gallery builder
   stage_meta.json       # gallery data: order, names, done/wip, links
