@@ -65,7 +65,7 @@ media. Standard stages also update the gallery.</p>
 <label>Stage</label>
 <select id="stage" onchange="onStage()">{opts}</select>
 <label>Texture (STGxxTEX.BIN)</label><input type="file" id="tex" accept=".bin,.BIN">
-<div id="polrow"><label>POL (STGxxPOL.BIN) &mdash; required for custom</label><input type="file" id="pol" accept=".bin,.BIN"></div>
+<div id="polrow"><label>POL (STGxxPOL.BIN) &mdash; required for custom; optional elsewhere (include it if the mod ships one)</label><input type="file" id="pol" accept=".bin,.BIN"></div>
 <label>Author (optional) &mdash; someone else's stage = guest mode</label>
 <input type="text" id="label" placeholder="e.g. herbderken  (keeps it out of your own files + exports a site submission)">
 <label>Title (optional) &mdash; shown on the submission entry</label>
@@ -83,8 +83,7 @@ media. Standard stages also update the gallery.</p>
   <a class="btn" href="/gallery" target="_blank">Open gallery &#8599;</a>
 </div>
 <script>
-function onStage(){{ document.getElementById('polrow').style.display =
-  document.getElementById('stage').value==='custom' ? 'block':'none'; }}
+function onStage(){{ document.getElementById('polrow').style.display='block'; }}
 function up(slot,kind,file){{ return fetch('/upload?slot='+slot+'&kind='+kind,{{method:'POST',body:file}}); }}
 async function run(){{
  var slot=document.getElementById('stage').value;
@@ -188,7 +187,8 @@ class H(http.server.BaseHTTPRequestHandler):
                                cwd=HERE, capture_output=True, text=True)
             log.append(r.stdout + (("\n" + r.stderr) if r.stderr else ""))
             # An Author makes this a community submission: label the capture, keep it
-            # out of your own folders, and export the site bundle as stageId "CV".
+            # out of your own folders, and export the site bundle as stageId "XX"
+            # (the site tags ports/originals XX; 00-10 are the stock slots).
             out_dir = os.path.join(OUT, "guests" if label else "custom")
             log.append("capturing (Flycast, ~2 min) ...")
             c = _capture(CUSTOM_CDI, 0x0B, out_dir, label)
@@ -197,9 +197,11 @@ class H(http.server.BaseHTTPRequestHandler):
             tag = "stg0B_Training" + (f"__{label}" if label else "")
             if ok and label:
                 ex = [sys.executable, os.path.join(HERE, "export_submission.py"),
-                      os.path.join(out_dir, tag), "--stage", "CV",
+                      os.path.join(out_dir, tag), "--stage", "XX",
                       "--author", (author or label), "--tex", tex,
                       "--out", os.path.join(OUT, "submissions")]
+                if os.path.exists(pol):      # port/original -> ship the POL too
+                    ex += ["--pol", pol]
                 if title:
                     ex += ["--title", title]
                 sx = subprocess.run(ex, cwd=HERE, capture_output=True, text=True)
@@ -236,6 +238,8 @@ class H(http.server.BaseHTTPRequestHandler):
                       os.path.join(out_dir, tag), "--stage", s,
                       "--author", (author or label), "--tex", tex,
                       "--out", os.path.join(OUT, "submissions")]
+                if os.path.exists(pol):      # geometry replaced -> ship the POL too
+                    ex += ["--pol", pol]
                 if title:
                     ex += ["--title", title]
                 sx = subprocess.run(ex, cwd=HERE, capture_output=True, text=True)
