@@ -187,12 +187,24 @@ class H(http.server.BaseHTTPRequestHandler):
             r = subprocess.run([sys.executable, os.path.join(HERE, "build_custom_stage.py"), pol, tex, CUSTOM_CDI],
                                cwd=HERE, capture_output=True, text=True)
             log.append(r.stdout + (("\n" + r.stderr) if r.stderr else ""))
-            out_dir = os.path.join(OUT, "custom")
+            # An Author makes this a community submission: label the capture, keep it
+            # out of your own folders, and export the site bundle as stageId "CV".
+            out_dir = os.path.join(OUT, "guests" if label else "custom")
             log.append("capturing (Flycast, ~2 min) ...")
-            c = _capture(CUSTOM_CDI, 0x0B, out_dir)
+            c = _capture(CUSTOM_CDI, 0x0B, out_dir, label)
             log.append(c.stdout[-600:] + (("\n" + c.stderr[-400:]) if c.stderr else ""))
             ok = "DONE (" in c.stdout
-            return self._result(out_dir, "stg0B_Training", "\n".join(log), ok)
+            tag = "stg0B_Training" + (f"__{label}" if label else "")
+            if ok and label:
+                ex = [sys.executable, os.path.join(HERE, "export_submission.py"),
+                      os.path.join(out_dir, tag), "--stage", "CV",
+                      "--author", (author or label), "--tex", tex,
+                      "--out", os.path.join(OUT, "submissions")]
+                if title:
+                    ex += ["--title", title]
+                sx = subprocess.run(ex, cwd=HERE, capture_output=True, text=True)
+                log.append((sx.stdout or "") + (("\n" + sx.stderr) if sx.stderr else ""))
+            return self._result(out_dir, tag, "\n".join(log), ok)
         s = slot.upper()
         if label:
             # GUEST MODE -- someone else's stage. Never writes to your Modified\
