@@ -256,6 +256,18 @@ class H(http.server.BaseHTTPRequestHandler):
 
 
 def main():
+    # Refuse to start if another instance already holds the port. On Windows
+    # SO_REUSEADDR lets a SECOND server bind the same port, and requests can then
+    # hit the STALE process (silently running old code) -- confusing to debug.
+    import socket
+    probe = socket.socket()
+    busy = probe.connect_ex(("127.0.0.1", PORT)) == 0
+    probe.close()
+    if busy:
+        raise SystemExit(
+            f"Port {PORT} is already in use -- another internal_tool is running.\n"
+            f"Close it first (Ctrl+C in its window, or: taskkill /IM python.exe /F),\n"
+            f"then start this one again so you're not talking to a stale server.")
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("127.0.0.1", PORT), H) as httpd:
         url = f"http://127.0.0.1:{PORT}/"
