@@ -7,11 +7,13 @@ never written to -- so guest stages can't clobber your own work.
 
     build_guest_stage.py <slotHex> <tex.bin> <out.cdi> [--pol <pol.bin>] [--base <base.cdi>]
 
-Sizes: a guest file smaller than the disc slot is zero-padded to fit. Larger than the
-slot is rejected -- for an oversized/foreign stage use build_custom_stage.py instead
-(Training slot + donor repoint).
+Sizes: a guest file smaller than the disc slot is zero-padded to fit. An OVERSIZED
+texture is written into another slot's texture region (a sacrificial 'donor' --
+safe because this disc only ever loads the one slot) and this file's ISO9660
+directory record is repointed at it, so no ISO rebuild is needed.
 """
-import os, sys, shutil
+import os, sys, shutil, struct
+from build_custom_stage import find_records, _cdi_off
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mvc2_disc as md
 from config import DEFAULTS_CDI as DEFAULT_BASE
@@ -31,6 +33,9 @@ def build(slot, tex_path, out_cdi, pol_path=None, base=DEFAULT_BASE):
     disc = {n.upper(): (p, s) for n, p, s in md.walk_iso(iso, start)
             if n.upper().startswith("STG")}
 
+    recs, bias = find_records(iso, {f"STG{i:02X}TEX.BIN" for i in range(0x11)} |
+                                   {f"STG{slot}POL.BIN"})
+
     with open(out_cdi, "r+b") as f:
         for kind, src in (("TEX", tex_path), ("POL", pol_path)):
             if not src:
@@ -40,10 +45,32 @@ def build(slot, tex_path, out_cdi, pol_path=None, base=DEFAULT_BASE):
                 raise SystemExit(f"{fn} not on disc")
             data = open(src, "rb").read()
             phys, fsize = disc[fn]
+
             if len(data) > fsize:
-                raise SystemExit(
-                    f"{fn}: {len(data)} bytes > disc slot {fsize}. Oversized guest stage --\n"
-                    f"use build_custom_stage.py (Training slot + donor repoint) instead.")
+                # OVERSIZED. A guest capture disc only ever loads this one slot, so we
+                # can sacrifice another slot's texture region: write the full file
+                # there and repoint this file's ISO9660 directory record at it.
+                if kind != "TEX":
+                    raise SystemExit(f"{fn}: {len(data)} > slot {fsize}; oversized POL unsupported")
+                cands = [(nm, r) for nm, r in recs.items()
+                         if nm.endswith("TEX.BIN") and nm != fn and r[3] >= len(data)]
+                if not cands:
+                    raise SystemExit(f"{fn}: {len(data)} bytes -- no donor slot big enough")
+                dnm, (_, _, delba, dcap) = max(cands, key=lambda kv: kv[1][3])
+                dphys = delba - bias
+                for k in range((len(data) + 2047) // 2048):
+                    f.seek(disc_base + (dphys + k) * ss + hlen)
+                    f.write(data[k * 2048:(k + 1) * 2048])
+                dirsec, off = recs[fn][0], recs[fn][1]
+                db = dirsec * 2048 + off
+                f.seek(_cdi_off(disc_base, ss, hlen, db + 2));  f.write(struct.pack('<I', delba))
+                f.seek(_cdi_off(disc_base, ss, hlen, db + 6));  f.write(struct.pack('>I', delba))
+                f.seek(_cdi_off(disc_base, ss, hlen, db + 10)); f.write(struct.pack('<I', len(data)))
+                f.seek(_cdi_off(disc_base, ss, hlen, db + 14)); f.write(struct.pack('>I', len(data)))
+                print(f"  {fn} oversized ({len(data)} > {fsize}) -> donor {dnm} "
+                      f"(cap {dcap}) + dir-record repoint")
+                continue
+
             if len(data) < fsize:
                 data += b"\x00" * (fsize - len(data))     # pad to the slot
             for k in range((len(data) + 2047) // 2048):
