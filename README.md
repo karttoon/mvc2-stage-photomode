@@ -107,6 +107,7 @@ src/
   regen_stage.py        # patch a standard slot + capture + rebuild gallery
   build_custom_stage.py # capture disc for a foreign / oversized stage
   build_guest_stage.py  # capture disc for someone ELSE'S stage (your files untouched)
+  export_submission.py  # emit a website community-submission bundle (6 files + meta.json)
   patch_cdi.py          # in-place same-size stage patcher for a CDI
   build_mockups.py      # website gallery builder
   stage_meta.json       # gallery data: order, names, done/wip, links

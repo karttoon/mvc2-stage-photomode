@@ -41,7 +41,7 @@ PAGE = """<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Stage Capture 
 body{{font-family:'Courier New',monospace;background:#fff;color:#000;max-width:900px;margin:36px auto;padding:0 16px;}}
 h1{{font-size:18px;text-transform:uppercase;border-bottom:2px solid #000;padding-bottom:8px;}}
 label{{font-weight:bold;text-transform:uppercase;font-size:12px;display:block;margin:14px 0 4px;}}
-select,input[type=file]{{font-family:inherit;font-size:13px;padding:6px;border:2px solid #000;width:100%;box-sizing:border-box;}}
+select,input[type=file],input[type=text]{{font-family:inherit;font-size:13px;padding:6px;border:2px solid #000;width:100%;box-sizing:border-box;}}
 button{{font-family:inherit;font-size:14px;font-weight:bold;text-transform:uppercase;padding:10px 26px;background:#000;color:#fff;border:2px solid #000;cursor:pointer;margin-top:16px;}}
 button:disabled{{background:#888;border-color:#888;cursor:default;}}
 .small{{font-size:12px;color:#555;}}
@@ -66,8 +66,10 @@ media. Standard stages also update the gallery.</p>
 <select id="stage" onchange="onStage()">{opts}</select>
 <label>Texture (STGxxTEX.BIN)</label><input type="file" id="tex" accept=".bin,.BIN">
 <div id="polrow"><label>POL (STGxxPOL.BIN) &mdash; required for custom</label><input type="file" id="pol" accept=".bin,.BIN"></div>
-<label>Label (optional) &mdash; for someone else's stage</label>
-<input type="text" id="label" placeholder="e.g. authorname  (keeps it out of your own files/gallery)">
+<label>Author (optional) &mdash; someone else's stage = guest mode</label>
+<input type="text" id="label" placeholder="e.g. herbderken  (keeps it out of your own files + exports a site submission)">
+<label>Title (optional) &mdash; shown on the submission entry</label>
+<input type="text" id="title" placeholder="e.g. Moonlight">
 <button id="go" onclick="run()">Generate</button>
 <div class="spin" id="spin">&#9881; working&hellip; Flycast is capturing (~2 min)&hellip;</div>
 <div id="log"></div>
@@ -89,6 +91,7 @@ async function run(){{
  var tex=document.getElementById('tex').files[0];
  var pol=document.getElementById('pol').files[0];
  var label=document.getElementById('label').value.trim();
+ var title=document.getElementById('title').value.trim();
  var log=document.getElementById('log'), spin=document.getElementById('spin'), go=document.getElementById('go');
  log.style.display='block'; log.textContent='';
  if(!tex){{ log.textContent='Pick a texture .BIN first.'; return; }}
@@ -97,7 +100,7 @@ async function run(){{
  try{{
    await up(slot,'tex',tex);
    if(pol) await up(slot,'pol',pol);
-   var r=await fetch('/generate?slot='+slot+'&label='+encodeURIComponent(label),{{method:'POST'}});
+   var r=await fetch('/generate?slot='+slot+'&label='+encodeURIComponent(label)+'&title='+encodeURIComponent(title),{{method:'POST'}});
    var j=await r.json();
    log.textContent=j.log;
    if(j.ok){{
@@ -160,9 +163,11 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._send(200, "ok")
         if p.path == "/generate":
             slot = q.get("slot", [""])[0]
-            label = "".join(c for c in q.get("label", [""])[0] if c.isalnum() or c in "-_")[:32]
+            author = q.get("label", [""])[0].strip()[:64]
+            label = "".join(c for c in author if c.isalnum() or c in "-_")[:32]
+            title = q.get("title", [""])[0].strip()[:64]
             try:
-                return self._generate(slot, label)
+                return self._generate(slot, label, title, author)
             except Exception as e:
                 return self._send(200, json.dumps({"ok": False, "log": f"ERROR: {e}"}), "application/json")
         return self._send(404, "not found")
@@ -175,7 +180,7 @@ class H(http.server.BaseHTTPRequestHandler):
             "left": base + "_left.png", "center": base + "_still.png", "right": base + "_right.png",
         }), "application/json")
 
-    def _generate(self, slot, label=""):
+    def _generate(self, slot, label="", title="", author=""):
         if slot == "custom":
             pol = os.path.join(UP, "CUSTOMPOL.BIN"); tex = os.path.join(UP, "CUSTOMTEX.BIN")
             log = ["building custom Training-slot disc ..."]
@@ -212,6 +217,17 @@ class H(http.server.BaseHTTPRequestHandler):
             log.append(c.stdout[-600:] + (("\n" + c.stderr[-400:]) if c.stderr else ""))
             ok = "DONE (" in c.stdout
             tag = (TAG.get(s) or f"stg{s}_Stage") + f"__{label}"
+            if ok:
+                # Emit the website submission bundle (6 files + meta.json), named
+                # c_{stageId}_{sub} where sub = md5(texture .BIN)[:8].
+                ex = [sys.executable, os.path.join(HERE, "export_submission.py"),
+                      os.path.join(out_dir, tag), "--stage", s,
+                      "--author", (author or label), "--tex", tex,
+                      "--out", os.path.join(OUT, "submissions")]
+                if title:
+                    ex += ["--title", title]
+                sx = subprocess.run(ex, cwd=HERE, capture_output=True, text=True)
+                log.append((sx.stdout or "") + (("\n" + sx.stderr) if sx.stderr else ""))
             return self._result(out_dir, tag, "\n".join(log), ok)
         # standard slot (your own stage)
         for kind in ("TEX", "POL"):
